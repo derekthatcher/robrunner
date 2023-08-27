@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Rob Runner</title>
+    <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+            background: #EEE;
+            font-family: monospace;
+            border-radius: 10px;
+            color: #444;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #container {
+            margin: 5px auto;
+        }
+
+        canvas {
+            display: block;
+            border: 4px solid #DDD;
+            margin: 10px auto;
+            transform: scale(0.7) translate(0%, 100px);
+        }
+
+        #play {
+            border: 4px solid #DDD;
+            padding: 10px 10px;
+            display: inline-block;
+            margin: 10px auto;
+            border-radius: 10px;
+        }
+
+        .hide {
+            display: none !important;
+        }
+
+        #powerup {
+            color: #16fcfc;
+            font-weight: 900;
+            text-shadow: 1px 1px #302466;
+        }
+
+        table {
+            margin: 0 auto;
+            border: 1px solid #444;;
+        }
+
+        table tr {
+            border: 1px solid #999;;
+        }
+
+        @media screen and (max-width: 1200px) {
+            canvas {
+                transform: unset;
+                width: 100vw;
+            }
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+</head>
+
+<body>
+    <div id="container">
+        <canvas onclick="jump()" id="gameCanvas" width="1200" height="400"></canvas>
+        <div>
+            <span class="hide" id="powerup">powerup!</span>
+            <div id="score">0</div>
+            <div>Your highscore: <span id="highscore">0</span></div>
+            <div id="play" class="hide">Start Game</div>
+            <div id="highscores"><h3>Highscores</h3><table></table></div>
+        </div>
+        <!--<iframe width="200px" height="400px" src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSTbWUsF5CPM7p6Cc-JkJ42zz2jU81etPBYRs_Vv6AdWBCrWOHuNLEa0hFl71VSrGSPShoRUMWVqqlt/pubhtml?gid=915041825&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
+        -->
+        </div>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const score = document.getElementById("score");
+        const record = document.getElementById("highscore");
+        const powerup = document.getElementById("powerup");
+        const playButton = document.getElementById("play");
+        const explosionSounds = [
+            new Audio("sounds/AwMan.wav"),
+            new Audio("sounds/NoWay.wav"),
+            new Audio("sounds/Awgh.wav"),
+        ];
+        const jumpSounds = [
+            new Audio("sounds/Hoop.wav"),
+            new Audio("sounds/Hurgh.wav"),
+            new Audio("sounds/OK.wav"),
+            new Audio("sounds/Yhup.wav"),
+            new Audio("sounds/Uh.wav"),
+            new Audio("sounds/Woo.wav"),
+            new Audio("sounds/Woop.wav"),
+            new Audio("sounds/Yip.wav"),
+        ];
+        const powerUpSound = new Audio("sounds/WooHoo.wav");
+        const themeMusic = new Audio("sounds/Theme.mp3");
+        const powerUpGainedSounds = [
+            new Audio("sounds/Yeah.wav"),
+            new Audio("sounds/ThatsIt.wav"),
+        ];
+        let highscore = 0;
+        let i = 64;
+        //control speed on different framerate devices
+        let lastTimestamp = 0;
+        let deltaTime = 0.01;
+        let pixelsPerSeconds = 600;
+
+        // declare dino / rob
+        const dino = {
+            x: 150,
+            y: canvas.height - 50,
+            width: 60,
+            height: 60,
+            hitbox: 35,
+            jumping: false,
+            velocityY: 0,
+            score: 0,
+            frame: 0,
+            gameOver: false,
+            powerUp: false,
+        };
+
+        //load images
+        obstacles = [];
+        robs = [];
+        let backGroundObjects = [];
+        let letters = [
+            {
+                src: 'ao1.png',
+                width: 60,
+                height: 60,
+                hitbox: 40,
+                x: 0,
+            },
+            {
+                src: 'ao2.png',
+                width: 50,
+                height: 60,
+                hitbox: 50,
+                x: 65,
+            },
+            {
+                src: 'ao3.png',
+                width: 40,
+                height: 60,
+                hitbox: 40,
+                x: 130,
+            },
+            {
+                src: 'ao4.png',
+                width: 60,
+                height: 60,
+                hitbox: 40,
+                x: 175,
+            },
+            {
+                src: 'ao5.png', //w
+                width: 65,
+                height: 60,
+                hitbox: 50,
+                x: 208,
+            },
+            {
+                src: 'ao6.png',
+                width: 45,
+                height: 60,
+                hitbox: 45,
+                x: 276,
+            },
+            {
+                src: 'ao7.png',
+                width: 15,
+                height: 40,
+                hitbox: 15,
+                x: 324
+            },
+            {
+                src: 'ao8.png',
+                width: 50,
+                height: 60,
+                hitbox: 50,
+                x: 324,
+            },
+            {
+                src: 'ao9.png',
+                width: 15,
+                height: 40,
+                hitbox: 15,
+                x: 360,
+            },
+        ]
+        var rob = [
+            'rob1.png',
+            'rob2.png',
+        ];
+        var explosion = new Image();
+        explosion.src = "explosion.png"; //transparent png
+
+        function randomGreyHex() {
+            var v = (Math.floor(Math.random() * (56) + 190)).toString(16);//bitwise OR. Gives value in the range 0-255 which is then converted to base 16 (hex).
+            return "#" + v + v + v;
+        }
+
+        function getPosition() {
+            return canvas.width + Math.random() * 2000 * letters.length;
+        }
+        function drawBackgroundObject(object) {
+            //draw a circle
+            ctx.fillStyle = object.colour;
+            ctx.fillRect(object.x, object.y, 30, 10);
+        }
+
+        function loadImages() {
+            for (var i = 0; i < letters.length; i++) {
+                obstacles[i] = {
+                    x: canvas.width,
+                    y: canvas.height - letters[i].height,
+                    width: letters[i].width,
+                    height: letters[i].height,
+                    hitbox: letters[i].hitbox,
+                    velocityX: -pixelsPerSeconds,
+                    origin: letters[i].x,
+                };
+                obstacles[i].image = new Image();
+                obstacles[i].image.src = letters[i].src;
+                obstacles[i].x = getPosition(); // adjust to fix positioning
+            }
+            for (var i = 0; i < rob.length; i++) {
+                robs[i] = new Image();
+                robs[i].src = rob[i];
+            }
+            // generate 30 background objects
+            for (var i = 0; i < 30; i++) {
+                backGroundObjects[i] = {
+                    x: canvas.width * Math.ceil(Math.random() * 30) / 30,
+                    y: canvas.height * Math.ceil(Math.random() * 10) / 10,
+                    velocityX: -pixelsPerSeconds,
+                    colour: randomGreyHex(),
+                }
+            }
+            update(window.performance.now());
+        }
+
+        function explode() {
+            i = i - 1;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var sHeight = 7 - Math.floor((i - 1) / 8);
+            var swidth = i % 8 == 0 ? 0 : i % 8;
+            ctx.drawImage(explosion, swidth * 100, sHeight * 100, 100, 80, dino.x, dino.y - 50, 100, 100);
+            if (i > 1) {
+                requestAnimationFrame(explode);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function drawDino() {
+            ctx.drawImage(robs[dino.frame], dino.x, dino.y, dino.width, dino.height);
+        }
+
+        function drawObstacle(obstacle) {
+            ctx.drawImage(obstacle.image, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+
+        function jump() {
+            if (!dino.jumping) {
+                dino.velocityY = -2 * pixelsPerSeconds;
+                dino.jumping = true;
+                jumpSounds[Math.floor(Math.random()*jumpSounds.length)].play();
+            } else if (dino.powerUp) {
+                powerUpSound.play();
+                dino.velocityY = -3 * pixelsPerSeconds;
+                dino.powerUp = false;
+                powerup.classList.add("hide");
+            }
+        }
+
+        function updateScore() {
+            score.innerHTML = dino.score;
+        }
+
+        function changeRob() {
+            dino.frame++;
+            if (dino.frame >= robs.length) {
+                dino.frame = 0;
+            }
+        }
+
+        function moveObstaclesToOrigin() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            moveBackground()
+            obstacles.forEach(obstacle => {
+                if (obstacle.x < 10 + obstacle.origin + canvas.width / 3) {
+                    obstacle.velocityX = -pixelsPerSeconds;
+                }
+                if (obstacle.x > obstacle.origin + canvas.width / 3) {
+                    obstacle.x += obstacle.velocityX * deltaTime;
+                }
+                drawObstacle(obstacle);
+            });
+            if (dino.gameOver) {
+                requestAnimationFrame(moveObstaclesToOrigin);
+            }
+        }
+
+        function setLogo() {
+            // send all letters to the right and set velocity to make them fly into place.
+            obstacles.forEach(obstacle => {
+                obstacle.x = canvas.width + obstacle.origin;
+                obstacle.velocityX = -400 - pixelsPerSeconds * Math.random();
+            });
+            setTimeout(moveObstaclesToOrigin, 1000);
+        }
+
+        function submitScore() {
+            var name = prompt("Please enter your name for High Score table", "Rob");
+            var settings = {
+                async: false,
+                dataType: "text/html",
+                    crossDomain: true,
+                        url:
+            "https://script.google.com/macros/s/AKfycbyl78lHihKoUknN3ycT4A2iIZaj-ENddPwrc6ngOFuI_T_PlrVd0URxphKtivt7h9z33w/exec",
+                method: "POST",
+                    headers: {
+                Accept: "application/json"
+            },
+            data: "Score="+dino.score+"&Name="+name
+        };
+        $.ajax(settings).done(function (data) {
+            console.log("highscore sent", data);
+        })
+            .fail(function (xhr, status, error) {
+                console.log("error on highescore", error);
+            });
+        }
+
+        function gameOver() {
+            score.innerHTML = "GAME OVER, score: " + dino.score;
+            explode();
+            console.log("Game Over!");
+            themeMusic.play();
+            if (dino.score > highscore) {
+                highscore = dino.score;
+                localStorage.setItem('highscore', highscore);
+                record.innerHTML = highscore;
+                if (dino.score > 49) {
+                    submitScore();
+                }
+            }
+            setTimeout(setLogo, 800);
+            playButton.classList.remove("hide");
+        }
+
+        function increaseSpeed() {
+            obstacles.forEach(obstacle => {
+                obstacle.velocityX -= Math.random() * 100;
+            });
+        }
+
+        //high score
+        // https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=AIzaSyCci220MXV1_bk8lywlTih_T4LzU4s-e1I
+        function loadHighscores() {
+            // get highscores
+            $.get(
+                "https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=AIzaSyCci220MXV1_bk8lywlTih_T4LzU4s-e1I"
+            ).done(function (data) {
+                console.log("highscore data recieved: ", data);
+                data.values.forEach(score => {
+                    $("#highscores table").append(
+                        "<tr><td>"+score[0]+"</td><td>"+score[1]+"</td><td>"+score[2]+"</td></tr>"
+                    );
+                });
+            }).fail(function (xhr, status, error) {
+                console.log("error on get");
+                var err = eval("(" + xhr.responseText + ")");
+                console.log(err.Message);
+            });
+        }
+
+        function moveObstacles() {
+            obstacles.forEach(obstacle => {
+                obstacle.x += obstacle.velocityX * deltaTime;
+                // Check if the obstacle moved off the left side of the canvas
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacle.x = getPosition(); // Reset obstacle position to the right side of the canvas
+                    dino.score += 1;
+                    updateScore();
+                    // increase speed 
+                    if (dino.score % 5 == 0) {
+                        increaseSpeed();
+                        dino.powerUp = true;
+                        powerUpGainedSounds[Math.floor(Math.random()*powerUpGainedSounds.length)].play();
+                        powerup.classList.remove("hide");
+                    }
+                }
+                // draw
+                drawObstacle(obstacle);
+                // Check for collision
+                if (
+                    dino.x + dino.hitbox > obstacle.x &&
+                    dino.x < obstacle.x + obstacle.width &&
+                    dino.y + dino.height > obstacle.y
+                ) {
+                    // Collision detected, end the game or handle the game over logic.
+                    dino.gameOver = true;
+                    explosionSounds[Math.floor(Math.random()*explosionSounds.length)].play();
+
+                }
+            });
+        }
+
+        function moveBackground() {
+            backGroundObjects.forEach(object => {
+                if (object.x < 0) {
+                    object.x = canvas.width + 10;
+                }
+                object.x += object.velocityX * deltaTime;
+                drawBackgroundObject(object);
+            });
+        }
+
+        function update(timestamp) {
+            if (!lastTimestamp) {
+                lastTimestamp = timestamp;
+            }
+            deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // check for game over and reset
+
+            if (dino.gameOver) {
+                lastTimestamp = timestamp;
+                dino.gameOver = 0;
+                themeMusic.stop();
+                obstacles.forEach(obstacle => {
+                    obstacle.x = getPosition();
+                    obstacle.velocityX = -pixelsPerSeconds;
+                });
+                setTimeout(200);
+                dino.score = 0;
+                updateScore();
+                i = 64;
+                playButton.classList.add("hide");
+            }
+            // Move the dino
+            dino.y += dino.velocityY * deltaTime;
+            dino.velocityY += pixelsPerSeconds * deltaTime * 8; // Gravity
+
+            // Check if dino is on the ground
+            if (dino.y >= canvas.height - dino.height) {
+                dino.y = canvas.height - dino.height;
+                dino.jumping = false;
+                dino.velocityY = 0;
+            }
+            // move and draw background
+            moveBackground();
+            // Move the obstacle and draw
+            moveObstacles();
+
+            // Draw everything
+            drawDino();
+
+            lastTimestamp = timestamp;
+            // Call update() again
+            if (dino.gameOver) {
+                setTimeout(100);
+                gameOver();
+            } else {
+                requestAnimationFrame(update);
+            }
+        }
+
+        function reRun() {
+            location.reload();
+        }
+
+        // Event listener for jumping
+        document.addEventListener("keydown", jump);
+        playButton.addEventListener("click", reRun);
+        document.addEventListener("visibilitychange", function () {
+            dino.gameOver = true;
+            explosionSound.play();
+        });
+        if (localStorage.getItem('highscore')) {
+            highscore = localStorage.getItem('highscore');
+            record.innerHTML = highscore;
+        }
+        // Start the game loop
+        setInterval(changeRob, 200);
+        loadImages();
+        loadHighscores();
+
+    </script>
+
+</body>
+
+</html>
