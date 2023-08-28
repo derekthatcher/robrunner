@@ -76,8 +76,6 @@
             <div id="play" class="hide">Start Game</div>
             <div id="highscores"><h3>Highscores</h3><table></table></div>
         </div>
-        <!--<iframe width="200px" height="400px" src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSTbWUsF5CPM7p6Cc-JkJ42zz2jU81etPBYRs_Vv6AdWBCrWOHuNLEa0hFl71VSrGSPShoRUMWVqqlt/pubhtml?gid=915041825&amp;single=true&amp;widget=true&amp;headers=false"></iframe>
-        -->
         </div>
     <script>
         const canvas = document.getElementById("gameCanvas");
@@ -367,11 +365,10 @@
         }
 
         //high score
-        // https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=AIzaSyCci220MXV1_bk8lywlTih_T4LzU4s-e1I
         function loadHighscores() {
             // get highscores
             $.get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=AIzaSyCci220MXV1_bk8lywlTih_T4LzU4s-e1I"
+                "https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=[YOUR KEY]"
             ).done(function (data) {
                 console.log("highscore data recieved: ", data);
                 data.values.forEach(score => {
