@@ -8,18 +8,17 @@
     <style>
         body {
             margin: 0;
-            overflow: hidden;
             text-align: center;
             background: #EEE;
             font-family: monospace;
             border-radius: 10px;
             color: #444;
             width: 100vw;
-            height: 100vh;
+            min-height: 110vh;
         }
 
         #container {
-            margin: 5px auto;
+            margin: 15px auto;
         }
 
         canvas {
@@ -56,6 +55,11 @@
             border: 1px solid #999;;
         }
 
+        footer {
+            position: absolute;
+            width: 100%;
+        }
+
         @media screen and (max-width: 1200px) {
             canvas {
                 transform: unset;
@@ -77,6 +81,7 @@
             <div id="highscores"><h3>Highscores</h3><table></table></div>
         </div>
         </div>
+        <footer><a href="https://github.com/derekthatcher/robrunner">Fork from https://github.com/derekthatcher/robrunner</a></footer>
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
@@ -106,6 +111,7 @@
             new Audio("sounds/ThatsIt.wav"),
         ];
         let highscore = 0;
+        let globalHighscore = 0;
         let i = 64;
         //control speed on different framerate devices
         let lastTimestamp = 0;
@@ -326,12 +332,12 @@
                 dataType: "text/html",
                     crossDomain: true,
                         url:
-            "https://script.google.com/macros/s/AKfycbyl78lHihKoUknN3ycT4A2iIZaj-ENddPwrc6ngOFuI_T_PlrVd0URxphKtivt7h9z33w/exec",
+            "https://script.google.com/macros/s/[YOUR SHEET]/exec",
                 method: "POST",
                     headers: {
                 Accept: "application/json"
             },
-            data: "Score="+dino.score+"&Name="+name
+            data: "Score="+dino.score+"&Name="+name.slice(0,10)
         };
         $.ajax(settings).done(function (data) {
             console.log("highscore sent", data);
@@ -350,12 +356,13 @@
                 highscore = dino.score;
                 localStorage.setItem('highscore', highscore);
                 record.innerHTML = highscore;
-                if (dino.score > 49) {
-                    submitScore();
-                }
             }
             setTimeout(setLogo, 800);
             playButton.classList.remove("hide");
+            if (dino.score > globalHighscore) {
+                console.log("highscore: "+dino.score +" : "+ globalHighscore)
+                submitScore();
+            }
         }
 
         function increaseSpeed() {
@@ -368,7 +375,7 @@
         function loadHighscores() {
             // get highscores
             $.get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1vVj7JDQwRFkK7Dt06eu5n_8b9C4aMugQW4L-cEKaVkY/values/Table!A1%3AC12?key=[YOUR KEY]"
+                "https://sheets.googleapis.com/v4/spreadsheets/[YOUR SHEET]/values/Table!A1%3AC12?key=[YOUR KEY]"
             ).done(function (data) {
                 console.log("highscore data recieved: ", data);
                 data.values.forEach(score => {
@@ -376,6 +383,7 @@
                         "<tr><td>"+score[0]+"</td><td>"+score[1]+"</td><td>"+score[2]+"</td></tr>"
                     );
                 });
+                globalHighscore = data.values.at(-1)[2];
             }).fail(function (xhr, status, error) {
                 console.log("error on get");
                 var err = eval("(" + xhr.responseText + ")");
@@ -487,7 +495,7 @@
         playButton.addEventListener("click", reRun);
         document.addEventListener("visibilitychange", function () {
             dino.gameOver = true;
-            explosionSound.play();
+            explosionSounds[Math.floor(Math.random()*explosionSounds.length)].play();
         });
         if (localStorage.getItem('highscore')) {
             highscore = localStorage.getItem('highscore');
